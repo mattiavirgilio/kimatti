@@ -1,4 +1,3 @@
-import { File } from "buffer";
 import Groq from "groq-sdk";
 import { headers } from "next/headers";
 import { z } from "zod";
@@ -24,7 +23,7 @@ export async function POST(request: Request) {
 	const { data, success } = schema.safeParse(await request.formData());
 	if (!success) return new Response("Invalid request", { status: 400 });
 
-	const transcript = await getTranscript(data.input);
+	const transcript = await getTranscript(data.input as any);
 	if (!transcript) return new Response("Invalid audio", { status: 400 });
 
 	console.timeEnd(
