@@ -127,7 +127,7 @@ export default function Home() {
 					type="text"
 					className="bg-transparent focus:outline-hidden p-4 w-full placeholder:text-neutral-600 dark:placeholder:text-neutral-400"
 					required
-					placeholder="Ask me anything"
+					placeholder="Frag mich was"
 					value={input}
 					onChange={(e) => setInput(e.target.value)}
 					ref={inputRef}
@@ -157,7 +157,7 @@ export default function Home() {
 				{messages.length === 0 && (
 					<>
 						<p>
-							A fast, open-source voice assistant powered by{" "}
+							Kimatti – Sprich mit deinen Idolen entwickelt von {" XASSIST, "}
 							<A href="https://groq.com">Groq</A>,{" "}
 							<A href="https://cartesia.ai">Cartesia</A>,{" "}
 							<A href="https://www.vad.ricky0123.com/">VAD</A>, and{" "}

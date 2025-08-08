@@ -7,7 +7,7 @@ import { after } from "next/server";
 const groq = new Groq();
 
 const schema = zfd.formData({
-	input: z.union([zfd.text(), zfd.file()]),
+	input: zfd.text(),
 	message: zfd.repeatableOfType(
 		zfd.json(
 			z.object({
@@ -78,11 +78,11 @@ export async function POST(request: Request) {
 			"X-API-Key": process.env.CARTESIA_API_KEY!,
 		},
 		body: JSON.stringify({
-			model_id: "sonic-english",
+			model_id: "sonic-2",
 			transcript: response,
 			voice: {
 				mode: "id",
-				id: "79a125e8-cd45-4c13-8a67-188112f4dd22",
+				id: "afa425cf-5489-4a09-8a3f-d3cb1f82150d",
 			},
 			output_format: {
 				container: "raw",
