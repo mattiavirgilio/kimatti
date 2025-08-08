@@ -8,7 +8,7 @@ import { Analytics } from "@vercel/analytics/react";
 export const metadata: Metadata = {
 	title: "Kimatti",
 	description:
-		"A fast, open-source voice assistant powered by Groq, Cartesia, and Vercel.",
+		"Ihr Star als KI-Agent.",
 };
 
 const geist = Geist({
