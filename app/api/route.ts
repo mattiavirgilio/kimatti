@@ -1,13 +1,13 @@
+import { File } from "buffer";
 import Groq from "groq-sdk";
 import { headers } from "next/headers";
 import { z } from "zod";
 import { zfd } from "zod-form-data";
-import { after } from "next/server";
 
 const groq = new Groq();
 
 const schema = zfd.formData({
-	input: zfd.text(),
+	input: z.union([zfd.text(), zfd.file()]),
 	message: zfd.repeatableOfType(
 		zfd.json(
 			z.object({
@@ -102,9 +102,6 @@ export async function POST(request: Request) {
 	}
 
 	console.time("stream " + request.headers.get("x-vercel-id") || "local");
-	after(() => {
-		console.timeEnd("stream " + request.headers.get("x-vercel-id") || "local");
-	});
 
 	return new Response(voice.body, {
 		headers: {
@@ -133,16 +130,19 @@ async function time() {
 }
 
 async function getTranscript(input: string | File) {
-	if (typeof input === "string") return input;
+    if (typeof input === "string") return input;
 
-	try {
-		const { text } = await groq.audio.transcriptions.create({
-			file: input,
-			model: "whisper-large-v3",
-		});
+    try {
+        const { text } = await groq.audio.transcriptions.create({
+            file: input,
+            model: "whisper-large-v3",
+        });
 
-		return text.trim() || null;
-	} catch {
-		return null; // Empty audio file
-	}
+        return text.trim() || null;
+    } catch (error) {
+        console.error("----------- FEHLER BEI GROQ TRANSCRIPTION -----------");
+        console.error(error);
+        console.error("----------------------------------------------------");
+        return null; // Return null after logging the error
+    }
 }
