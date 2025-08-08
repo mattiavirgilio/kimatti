@@ -157,7 +157,7 @@ export default function Home() {
 				{messages.length === 0 && (
 					<>
 						<p>
-							Kimatti – Sprich mit deinen Idolen entwickelt von {" XASSIST, "}
+							Kimatti – Sprich mit deinen Idolen. Entwickelt von {" XASSIST, "}
 							<A href="https://groq.com">Groq</A>,{" "}
 							<A href="https://cartesia.ai">Cartesia</A>,{" "}
 							<A href="https://www.vad.ricky0123.com/">VAD</A>, and{" "}
