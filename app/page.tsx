@@ -24,9 +24,10 @@ export default function Home() {
     const [input, setInput] = useState("");
     const inputRef = useRef<HTMLInputElement>(null);
     const player = usePlayer();
+    const [isStarted, setIsStarted] = useState(false); // NEU: State für den Start-Zustand
 
     const vad = useMicVAD({
-        startOnLoad: true,
+        startOnLoad: false, // GEÄNDERT: Startet nicht mehr automatisch
         onSpeechEnd: (audio) => {
             player.stop();
             const wav = utils.encodeWAV(audio);
@@ -38,6 +39,13 @@ export default function Home() {
         positiveSpeechThreshold: 0.6,
         minSpeechFrames: 4,
     });
+
+    // NEU: Funktion, die beim Klick auf den Start-Button ausgeführt wird
+    const handleStart = () => {
+        player.unlockAudio(); // WICHTIG: Schaltet das Audio für mobile Geräte frei
+        vad.start();
+        setIsStarted(true);
+    };
 
     useEffect(() => {
         function keyDown(e: KeyboardEvent) {
@@ -67,64 +75,38 @@ export default function Home() {
             formData.append("message", JSON.stringify(message));
         }
 
-        // --- HIER BEGINNT UNSER DEBUGGING-BLOCK ---
-        console.log("1. Sende Anfrage an /api...");
         const submittedAt = Date.now();
 
-        try {
-            const response = await fetch("/api", {
-                method: "POST",
-                body: formData,
-            });
+        const response = await fetch("/api", {
+            method: "POST",
+            body: formData,
+        });
 
-            console.log("2. Antwort von /api erhalten. Status:", response.status);
+        const transcript = decodeURIComponent(
+            response.headers.get("X-Transcript") || ""
+        );
+        const text = decodeURIComponent(response.headers.get("X-Response") || "");
 
-            const transcript = decodeURIComponent(
-                response.headers.get("X-Transcript") || ""
-            );
-            const text = decodeURIComponent(response.headers.get("X-Response") || "");
-
-            if (!response.ok || !transcript || !text) {
-                 if (response.status === 429) {
-                     toast.error("Too many requests. Please try again later.");
-                 } else {
-                     const errorText = await response.text();
-                     toast.error(errorText || "An error occurred.");
-                     console.error("Fehler von der API-Route:", errorText);
-                 }
-                 return prevMessages; // Wichtig: Gib die alten Nachrichten zurück, um den State nicht zu verlieren
-            }
-
-            if (response.body) {
-                console.log("3. Response Body (Stream) ist vorhanden. Rufe jetzt player.play() auf.");
-                
-                player.play(response.body, () => {
-                    console.log("4. Audiowiedergabe beendet (Callback vom Player).");
-                    const isFirefox = navigator.userAgent.includes("Firefox");
-                    if (isFirefox) vad.start();
-                });
-
+        if (!response.ok || !transcript || !text || !response.body) {
+            if (response.status === 429) {
+                toast.error("Too many requests. Please try again later.");
             } else {
-                console.error("3. FEHLER: Die Antwort vom Server hat keinen Body (Stream)!");
-                return prevMessages;
+                toast.error((await response.text()) || "An error occurred.");
             }
-            
-            const latency = Date.now() - submittedAt;
-            setInput(transcript);
-
-            return [
-                ...prevMessages,
-                { role: "user", content: transcript },
-                { role: "assistant", content: text, latency },
-            ];
-
-        } catch (error) {
-            console.error("Unerwarteter Fehler beim fetch-Aufruf im Frontend:", error);
-            toast.error("An unexpected error occurred.");
             return prevMessages;
         }
-        // --- ENDE DEBUGGING-BLOCK ---
 
+        player.play(response.body, () => {
+            const isFirefox = navigator.userAgent.includes("Firefox");
+            if (isFirefox) vad.start();
+        });
+        setInput(transcript);
+
+        return [
+            ...prevMessages,
+            { role: "user", content: transcript },
+            { role: "assistant", content: text, latency: Date.now() - submittedAt },
+        ];
     }, []);
 
     function handleFormSubmit(e: React.FormEvent) {
@@ -132,6 +114,21 @@ export default function Home() {
         startTransition(() => submit(input));
     }
 
+    // NEU: Zeigt den Start-Button, solange das Erlebnis nicht gestartet wurde
+    if (!isStarted) {
+        return (
+            <div className="w-full h-screen flex justify-center items-center bg-black">
+                <button
+                    onClick={handleStart}
+                    className="px-8 py-4 bg-neutral-800 text-white rounded-lg text-xl hover:bg-neutral-700 transition-colors border border-neutral-600"
+                >
+                    Erlebnis starten
+                </button>
+            </div>
+        );
+    }
+
+    // Die normale Ansicht, nachdem der Nutzer auf "Start" geklickt hat
     return (
         <>
             <div className="pb-4 min-h-28" />
@@ -142,7 +139,7 @@ export default function Home() {
             >
                 <input
                     type="text"
-                    className="bg-transparent focus:outline-hidden p-4 w-full placeholder:text-neutral-600 dark:placeholder:text-neutral-400"
+                    className="bg-transparent focus:outline-none p-4 w-full placeholder:text-neutral-600 dark:placeholder:text-neutral-400"
                     required
                     placeholder="Frag mich was"
                     value={input}
