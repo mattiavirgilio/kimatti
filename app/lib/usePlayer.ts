@@ -1,64 +1,51 @@
 import { useRef, useState } from "react";
 
 export function usePlayer() {
-	const [isPlaying, setIsPlaying] = useState(false);
-	const audioContext = useRef<AudioContext | null>(null);
-	const source = useRef<AudioBufferSourceNode | null>(null);
+    const [isPlaying, setIsPlaying] = useState(false);
+    // Wir benutzen jetzt ein einfaches HTML-Audio-Element statt des komplexen AudioContext
+    const audioRef = useRef<HTMLAudioElement | null>(null);
 
-	async function play(stream: ReadableStream, callback: () => void) {
-		stop();
-		audioContext.current = new AudioContext({ sampleRate: 24000 });
+    async function play(stream: ReadableStream, callback: () => void) {
+        stop();
+        setIsPlaying(true);
 
-		let nextStartTime = audioContext.current.currentTime;
-		const reader = stream.getReader();
-		let leftover = new Uint8Array();
-		let result = await reader.read();
-		setIsPlaying(true);
+        try {
+            // 1. Lese den gesamten MP3-Stream in einen "Blob"
+            const blob = await new Response(stream).blob();
+            
+            // 2. Erstelle eine URL für diesen Blob, die der Browser abspielen kann
+            const url = URL.createObjectURL(blob);
 
-		while (!result.done && audioContext.current) {
-			const data = new Uint8Array(leftover.length + result.value.length);
-			data.set(leftover);
-			data.set(result.value, leftover.length);
+            // 3. Erstelle ein neues Audio-Element und spiele es ab
+            const audio = new Audio(url);
+            audioRef.current = audio;
+            audio.play();
 
-			const length = Math.floor(data.length / 4) * 4;
-			const remainder = data.length % 4;
-			const buffer = new Float32Array(data.buffer, 0, length / 4);
+            // 4. Wenn die Wiedergabe endet, rufen wir den Callback auf
+            audio.onended = () => {
+                stop();
+                callback();
+            };
 
-			leftover = new Uint8Array(data.buffer, length, remainder);
+        } catch (error) {
+            console.error("Fehler bei der MP3-Wiedergabe:", error);
+            stop();
+            callback();
+        }
+    }
 
-			const audioBuffer = audioContext.current.createBuffer(
-				1,
-				buffer.length,
-				audioContext.current.sampleRate
-			);
-			audioBuffer.copyToChannel(buffer, 0);
+    function stop() {
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.src = ""; // Quelle leeren
+            audioRef.current = null;
+        }
+        setIsPlaying(false);
+    }
 
-			source.current = audioContext.current.createBufferSource();
-			source.current.buffer = audioBuffer;
-			source.current.connect(audioContext.current.destination);
-			source.current.start(nextStartTime);
-
-			nextStartTime += audioBuffer.duration;
-
-			result = await reader.read();
-			if (result.done) {
-				source.current.onended = () => {
-					stop();
-					callback();
-				};
-			}
-		}
-	}
-
-	function stop() {
-		audioContext.current?.close();
-		audioContext.current = null;
-		setIsPlaying(false);
-	}
-
-	return {
-		isPlaying,
-		play,
-		stop,
-	};
+    return {
+        isPlaying,
+        play,
+        stop,
+    };
 }
