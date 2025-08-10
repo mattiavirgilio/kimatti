@@ -234,7 +234,7 @@ export default function Home() {
             </p>
 
             {!isCalling && (
-              <p>Klicken Sie auf den "Call starten" Button um mit dem Agent zu sprechen.</p>
+              <p>Klicken Sie auf den &quot;Call starten&quot; Button um mit dem Agent zu sprechen.</p>
             )}
           </>
         )}
