@@ -5,7 +5,15 @@ import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { EnterIcon, LoadingIcon } from "@/lib/icons";
 import { track } from "@vercel/analytics";
-import { RetellWebClient } from "retell-client-js-sdk";
+
+// Fallback für RetellWebClient
+let RetellWebClient: any = null;
+try {
+  const retellModule = require("retell-client-js-sdk");
+  RetellWebClient = retellModule.RetellWebClient;
+} catch (error) {
+  console.warn("Retell SDK nicht verfügbar:", error);
+}
 
 type Message = {
   role: "user" | "assistant";
@@ -23,7 +31,7 @@ export default function Home() {
   const [isCalling, setIsCalling] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [retellWebClient, setRetellWebClient] = useState<RetellWebClient | null>(null);
+  const [retellWebClient, setRetellWebClient] = useState<any>(null);
   const [isAgentSpeaking, setIsAgentSpeaking] = useState(false);
   const [isUserSpeaking, setIsUserSpeaking] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -39,6 +47,11 @@ export default function Home() {
   }, [isCalling]);
 
   const startConversation = async () => {
+    if (!RetellWebClient) {
+      toast.error("Retell SDK nicht verfügbar");
+      return;
+    }
+
     setIsConnecting(true);
     try {
       const res = await fetch("/api/retell/token", { method: "POST" });
@@ -93,9 +106,8 @@ export default function Home() {
         track("User stopped talking");
       });
 
-      client.on("update", (update) => {
+      client.on("update", (update: any) => {
         console.log("Update:", update);
-        // Nur den reinen Text aus dem Transcript extrahieren
         if (update.transcript && typeof update.transcript === 'string') {
           setMessages(prev => [...prev, {
             role: "user",
@@ -105,7 +117,7 @@ export default function Home() {
         }
       });
 
-      client.on("error", (error) => {
+      client.on("error", (error: any) => {
         console.error("Ein Fehler ist aufgetreten:", error);
         setIsCalling(false);
         setIsConnecting(false);
@@ -113,7 +125,6 @@ export default function Home() {
         track("Call error", { error });
       });
 
-      // Call starten
       await client.startCall({
         accessToken: data.access_token,
         sampleRate: 24000,
@@ -156,13 +167,15 @@ export default function Home() {
           <button
             onClick={startConversation}
             className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-full text-lg font-medium transition-colors shadow-lg hover:shadow-xl"
-            disabled={isConnecting}
+            disabled={isConnecting || !RetellWebClient}
           >
             {isConnecting ? (
               <div className="flex items-center space-x-2">
                 <LoadingIcon />
                 <span>Verbinde...</span>
               </div>
+            ) : !RetellWebClient ? (
+              <span>SDK nicht verfügbar</span>
             ) : (
               <div className="flex items-center space-x-2">
                 <span>🎤</span>
